@@ -1,0 +1,71 @@
+<launch>
+    <arg name="paused" default="false"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+    <arg name="debug" default="false"/>
+
+    <param name="use_sim_time" value="$(arg use_sim_time)"/>
+    <param name="shoe_description" command="$(find xacro)/xacro '$(find hephaestus_gazebo)/urdf/google_scan/shoe.xacro'" />
+    <param name="bowl_description" command="$(find xacro)/xacro '$(find hephaestus_gazebo)/urdf/google_scan/bowl.xacro'" />
+    <param name="rgbd_description" command="$(find xacro)/xacro '$(find hephaestus_gazebo)/urdf/realsense/d435_gazebo.xacro'" />
+    <param name="robot_description" command="$(find xacro)/xacro '$(find hephaestus_description)/urdf/hephaestus_description.urdf'" />
+    
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(find hephaestus_gazebo)/worlds/rgbd.world"/>
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+
+    <node name="shoe_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="
+    -urdf 
+    -model shoe 
+    -param shoe_description 
+    -x 0.0
+    -y -0.3
+    -z 0.0 
+    -R 0.0
+    -P 0.0
+    -Y 1.57"/>
+
+    <node name="bowl_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="
+    -urdf 
+    -model bowl 
+    -param bowl_description 
+    -x 0.0
+    -y -0.4
+    -z 0.0 
+    -R 0.0
+    -P 0.0
+    -Y 0.0"/>
+
+    <node name="camera_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="
+    -urdf 
+    -model rgbd 
+    -param rgbd_description"/>
+
+    <node name="robot_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="
+    -urdf 
+    -model hephaestus 
+    -param robot_description"/>
+    <node name="robot_tf_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen"/>
+
+    <!-- <node name="rgbd_tf_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+        <param name="use_tf_static" value="true"/>
+        <param name="publish_frequency" value="50"/>
+        <param name="ignore_timestamp" value="true"/>
+        <remap from="robot_description" to="rgbd_description"/>
+    </node> -->
+    <node pkg="tf" type="static_transform_publisher" name="camera_tf_publisher" args="1.000 -0.250 0.600 0.608 0.608 -0.361 -0.361 /world /d435_base 100"/>
+
+    <!-- ROS Control -->
+    <rosparam file="$(find hephaestus_moveit)/config/hephaestus_controllers.yaml" command="load"/>
+    <rosparam file="$(find hephaestus_gazebo)/config/gazebo_ros_control.yaml" command="load"/>
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" args="hephaestus_arm_group_controller joint_state_controller"/>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hephaestus_gazebo)/rviz/hephaestus_gazebo.rviz" />
+</launch>
